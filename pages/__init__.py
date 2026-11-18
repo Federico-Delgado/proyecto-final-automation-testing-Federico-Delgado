@@ -1,0 +1,1 @@
+# Archivo vacío para que Python trate la carpeta pages como paquete.

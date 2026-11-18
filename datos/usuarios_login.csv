@@ -1,0 +1,5 @@
+usuario,clave,esperado_exitoso,descripcion
+standard_user,secret_sauce,True,Login válido exitoso
+locked_out_user,secret_sauce,False,Usuario bloqueado
+problem_user,secret_sauce,True,Usuario con problemas de renderizado
+usuario_falso,clave_falsa,False,Credenciales inválidas
