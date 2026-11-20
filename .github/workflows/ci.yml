@@ -1,0 +1,71 @@
+# .github/workflows/ci.yml
+name: CI - Proyecto Final Automation Testing
+
+# EVENTOS: Cuándo se debe ejecutar este pipeline
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    name: Ejecutar Suite de Pruebas (UI + API)
+    runs-on: ubuntu-latest # Runner de GitHub: máquina Linux limpia y rápida
+
+    # VARIABLES DE ENTORNO
+    env:
+      PYTHON_VERSION: '3.11'
+      REPORTS_DIR: 'reports'
+      LOGS_DIR: 'logs'
+
+    steps:
+      # PASO 1: Descargar el código del repositorio
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      # PASO 2: Configurar la versión de Python
+      - name: Configurar Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip' # Cachea las dependencias para acelerar ejecuciones futuras
+
+      # PASO 3: Instalar dependencias del proyecto
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # PASO 4: Crear directorios de salida (evita errores si pytest falla temprano)
+      - name: Crear directorios de reportes y logs
+        run: |
+          mkdir -p ${{ env.REPORTS_DIR }}
+          mkdir -p ${{ env.LOGS_DIR }}
+
+      # PASO 5: Ejecutar las pruebas con Pytest
+      # Nota: Selenium 4.6+ incluye Selenium Manager, que descarga ChromeDriver automáticamente en Ubuntu.
+      - name: Ejecutar Pruebas UI y API
+        run: |
+          pytest tests/ tests_api/ -v \
+            --html=${{ env.REPORTS_DIR }}/reporte_ci.html \
+            --self-contained-html \
+            --tb=short
+
+      # PASO 6: Subir el reporte HTML como artefacto (disponible por 90 días en GitHub)
+      - name: Subir Reporte HTML
+        uses: actions/upload-artifact@v4
+        if: always() # Se ejecuta incluso si los tests fallan, para que podamos ver el reporte del fallo
+        with:
+          name: reporte-html-ci
+          path: ${{ env.REPORTS_DIR }}/reporte_ci.html
+          retention-days: 30
+
+      # PASO 7: Subir los logs como artefacto
+      - name: Subir Logs de Ejecución
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: logs-ejecucion-ci
+          path: ${{ env.LOGS_DIR }}/
+          retention-days: 30
