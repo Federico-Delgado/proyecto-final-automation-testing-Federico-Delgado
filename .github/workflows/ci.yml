@@ -1,0 +1,67 @@
+name: CI - Proyecto Final Automation Testing
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    name: Ejecutar Suite de Pruebas (UI + API)
+    runs-on: ubuntu-latest
+
+    env:
+      PYTHON_VERSION: '3.11'
+      REPORTS_DIR: 'reports'
+      LOGS_DIR: 'logs'
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      # ✅ NUEVO STEP: Asegurar que Chrome esté instalado
+      - name: Instalar Google Chrome
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+          google-chrome --version
+
+      - name: Instalar dependencias Python
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Crear directorios de reportes y logs
+        run: |
+          mkdir -p ${{ env.REPORTS_DIR }}
+          mkdir -p ${{ env.LOGS_DIR }}
+
+      - name: Ejecutar Pruebas UI y API
+        run: |
+          pytest tests/ tests_api/ -v \
+            --html=${{ env.REPORTS_DIR }}/reporte_ci.html \
+            --self-contained-html \
+            --tb=short
+
+      - name: Subir Reporte HTML
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reporte-html-ci
+          path: ${{ env.REPORTS_DIR }}/reporte_ci.html
+          retention-days: 30
+
+      - name: Subir Logs de Ejecución
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: logs-ejecucion-ci
+          path: ${{ env.LOGS_DIR }}/
+          retention-days: 30
