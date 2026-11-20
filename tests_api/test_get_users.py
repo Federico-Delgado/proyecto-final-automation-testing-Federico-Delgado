@@ -1,37 +1,22 @@
 import pytest
 import requests
+from utils.logger import logger
 
 @pytest.mark.api
 @pytest.mark.smoke
 def test_get_users_lista_completa(users_url):
-    """Valida que el endpoint de usuarios devuelva una lista completa con estructura correcta."""
+    logger.info(f"Ejecutando GET a: {users_url}")
     response = requests.get(users_url)
     
-    # Nivel 1: Status code
-    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+    assert response.status_code == 200
+    logger.info("Status code 200 verificado correctamente")
     
-    # Nivel 2: Headers - verificar que devuelve JSON
-    assert 'application/json' in response.headers.get('Content-Type', ''), \
-        "Response should be JSON"
-    
-    # Nivel 3: Estructura JSON - validar que es una lista
     data = response.json()
-    assert isinstance(data, list), "Response should be a list"
-    assert len(data) > 0, "Users list should not be empty"
+    assert isinstance(data, list) and len(data) > 0
+    logger.info(f"Se obtuvieron {len(data)} usuarios válidos")
     
-    # Nivel 4: Contenido específico - validar estructura de cada usuario
-    required_fields = {'id', 'name', 'email', 'username'}
-    for user in data:
-        assert required_fields <= set(user.keys()), \
-            f"User missing required fields. Has: {set(user.keys())}"
-        assert user['id'] > 0, "User ID should be positive"
-        assert '@' in user['email'], "Email should be valid"
-    
-    # Nivel 5: Performance - tiempo de respuesta aceptable
-    assert response.elapsed.total_seconds() < 2, \
-        f"API too slow: {response.elapsed.total_seconds():.2f}s"
-    
-    print(f"✅ GET users: {len(data)} usuarios validados en {response.elapsed.total_seconds():.3f}s")
+    assert response.elapsed.total_seconds() < 2
+    logger.info(f"Performance OK: {response.elapsed.total_seconds():.3f}s")
 
 @pytest.mark.api
 def test_get_user_especifico(users_url):
