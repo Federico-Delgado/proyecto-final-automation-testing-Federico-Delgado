@@ -1,26 +1,58 @@
 import pytest
+import pathlib
+from datetime import datetime
+import base64
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
-import os
 
 @pytest.fixture(scope="function")
 def driver():
     """Fixture que proporciona un WebDriver de Chrome configurado."""
     chrome_options = Options()
-    # Descomentar la siguiente línea para ejecutar en modo headless (ideal para CI/CD en Fase 5)
-    # chrome_options.add_argument("--headless")
+    # chrome_options.add_argument("--headless") # Descomentar para CI/CD
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--window-size=1920,1080")
 
-    service = Service() # Selenium 4 gestiona el driver automáticamente
+    service = Service()
     driver = webdriver.Chrome(service=service, options=chrome_options)
-    
-    driver.implicitly_wait(5) # Espera implícita de seguridad
+    driver.implicitly_wait(5)
     driver.maximize_window()
-    
     yield driver
-    
-    # Teardown: cerrar el navegador después de cada test
     driver.quit()
+
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """Hook para capturar screenshots automáticos en fallos y adjuntarlos al reporte."""
+    outcome = yield
+    report = outcome.get_result()
+    
+    # Solo capturamos si el test falló en la fase de ejecución principal
+    if report.when == 'call' and report.failed:
+        driver = item.funcargs.get('driver')
+        if driver:
+            screens_dir = pathlib.Path('reports/screens')
+            screens_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Nombre descriptivo: FechaHora_NombreDelTest.png
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            file_name = screens_dir / f"{timestamp}_{item.name}.png"
+            
+            driver.save_screenshot(str(file_name))
+            
+            # Adjuntar al reporte HTML embebido en base64 (para que sea autocontenido)
+            # CORRECCIÓN: pytest-html 4.x usa 'extras' (con 's')
+            try:
+                import pytest_html
+                # Inicializar la lista de extras si no existe
+                if not hasattr(report, 'extras'):
+                    report.extras = []
+                
+                with open(file_name, 'rb') as f:
+                    image_data = base64.b64encode(f.read()).decode('utf-8')
+                
+                # Usar 'extras' en lugar de 'extra'
+                report.extras.append(pytest_html.extras.image(image_data, mime_type='image/png'))
+            except ImportError:
+                pass 
